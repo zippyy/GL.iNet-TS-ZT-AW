@@ -29,7 +29,24 @@ When ZeroTier is missing or down, it restores:
 
 The script logs recovery events to the system log under the tag `astrowarp-overlay-watch`.
 
-## Install
+## One-line install
+
+Run this on the GL.iNet router as `root`:
+
+```sh
+wget -qO- https://raw.githubusercontent.com/zippyy/GL.iNet-TS-ZT-AW/main/install.sh | sh
+```
+
+The installer downloads the watchdog and its init service, makes them executable, enables startup at boot, and starts the service.
+
+Verify it is running:
+
+```sh
+/etc/init.d/astrowarp-overlay-watch status
+logread -e astrowarp-overlay-watch
+```
+
+## Manual install
 
 Copy the files to the router:
 
@@ -45,13 +62,6 @@ chmod 0755 /usr/bin/astrowarp-overlay-watch
 chmod 0755 /etc/init.d/astrowarp-overlay-watch
 /etc/init.d/astrowarp-overlay-watch enable
 /etc/init.d/astrowarp-overlay-watch start
-```
-
-Verify it is running:
-
-```sh
-/etc/init.d/astrowarp-overlay-watch status
-logread -e astrowarp-overlay-watch
 ```
 
 ## Manual recovery commands
