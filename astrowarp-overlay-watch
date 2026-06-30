@@ -1,0 +1,47 @@
+#!/bin/sh
+
+# GL.iNet Tailscale + ZeroTier overlay watchdog for AstroWarp setups.
+# Restores GL.iNet UCI settings and restarts an overlay only when it has
+# no assigned IPv4 address.
+
+TAILSCALE_IF="tailscale0"
+# ZeroTier interface names vary, such as zt0 or ztabc12345.
+ZEROTIER_PREFIX="zt"
+
+while true; do
+    fixed=0
+
+    # Tailscale must exist and have an IPv4 address.
+    if ! ip addr show dev "$TAILSCALE_IF" 2>/dev/null | grep -q "inet "; then
+        logger -t astrowarp-overlay-watch "Tailscale interface down or missing IP. Restoring configuration..."
+
+        uci set tailscale.settings.enabled='1'
+        uci set tailscale.settings.lan_enabled='1'
+        uci set tailscale.settings.wan_enabled='1'
+        uci set tailscale.settings.masq='1'
+        uci commit tailscale
+
+        /etc/init.d/tailscale restart
+        fixed=1
+    fi
+
+    # Find the first ZeroTier interface beginning with zt and verify IPv4.
+    ZT_INTERFACE=$(ip addr show | grep -E "^[0-9]+: ${ZEROTIER_PREFIX}" | awk -F': ' '{print $2}' | cut -d'@' -f1 | head -n 1)
+
+    if [ -z "$ZT_INTERFACE" ] || ! ip addr show dev "$ZT_INTERFACE" 2>/dev/null | grep -q "inet "; then
+        logger -t astrowarp-overlay-watch "ZeroTier interface down or missing IP. Restoring configuration..."
+
+        uci set zerotier.gl.enabled='1'
+        uci commit zerotier
+
+        /etc/init.d/zerotier restart
+        fixed=1
+    fi
+
+    # Allow restarted overlays time to initialize before the next check.
+    if [ "$fixed" = "1" ]; then
+        sleep 15
+    fi
+
+    sleep 30
+done
